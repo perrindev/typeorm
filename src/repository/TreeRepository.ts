@@ -205,17 +205,19 @@ export class TreeRepository<
                 .innerJoin(this.metadata.targetName, "joined", whereCondition)
                 .where(joinCondition, parameters)
         } else if (this.metadata.treeType === "materialized-path") {
+            const joinColumn = this.metadata.treeParentRelation.joinColumns[0];
+            const parentPropertyName = joinColumn.givenDatabaseName || joinColumn.databaseName;
             return this.createQueryBuilder(alias).where((qb) => {
                 const subQuery = qb
                     .subQuery()
                     .select(
-                        `${this.metadata.targetName}.${
+                        `GROUP_CONCAT(${this.metadata.targetName}.${
                             this.metadata.materializedPathColumn!.propertyPath
-                        }`,
+                        } SEPARATOR '%')`,
                         "path",
                     )
                     .from(this.metadata.target, this.metadata.targetName)
-                    .whereInIds(this.metadata.getEntityIdMap(entity))
+                    .where(`${parentPropertyName} = :id`, { id: entity.id });
 
                 if (
                     DriverUtils.isSQLiteFamily(this.manager.connection.driver)
